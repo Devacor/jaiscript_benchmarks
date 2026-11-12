@@ -1,0 +1,3 @@
+[submodule "jaiscript"]
+	path = jaiscript
+	url = https://github.com/Devacor/jaiscript.git

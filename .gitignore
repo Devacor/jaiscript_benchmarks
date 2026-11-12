@@ -1,0 +1,11 @@
+out/
+build/
+build-*/
+third_party/*
+!third_party/README.md
+__pycache__/
+*.pyc
+.vs/
+.vscode/
+.cache/
+*.jaibite

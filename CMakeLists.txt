@@ -1,0 +1,62 @@
+# JaiScriptComparisons - JaiScript against AngelScript, Lua, LuaJIT, Squirrel and ChaiScript: the GLOOM, demoreel and JaiDoom
+# ports, the Gator Quest Lua twin, the interpreter benchmark suites, the kernel suite and the benchmark apps. JaiScript builds
+# as a subproject; nothing in it refers back here.
+cmake_minimum_required(VERSION 3.20)
+
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_GENERATOR MATCHES "^(Visual Studio|Xcode)|Multi-Config$")
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build.")
+endif()
+
+project(JaiScriptComparisons LANGUAGES C CXX)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+include(comparison_paths.cmake)
+set(COMPARISONS_THIRD_PARTY "${CMAKE_CURRENT_SOURCE_DIR}/third_party" CACHE PATH "Holds the lua/, sol2/, squirrel/, chaiscript/ and angelscript/ source trees")
+set(COMPARISONS_CHAISCRIPT_ROOT "${COMPARISONS_THIRD_PARTY}/chaiscript" CACHE PATH "ChaiScript 6.1.0, patched by prepare_comparison.py (the folder holding include/)")
+set(COMPARISONS_ANGELSCRIPT_ROOT "${COMPARISONS_THIRD_PARTY}/angelscript" CACHE PATH "The AngelScript SDK (the folder holding angelscript/include/angelscript.h)")
+
+# The layout the measurements were taken with: the static runtime, whole-program Release, every program in bin/
+if(MSVC AND NOT DEFINED CMAKE_MSVC_RUNTIME_LIBRARY)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
+foreach(config Debug Release RelWithDebInfo MinSizeRel)
+    string(TOUPPER ${config} config_upper)
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${config_upper} ${PROJECT_BINARY_DIR}/bin)
+endforeach()
+
+set(JAISCRIPT_BUILD_EXAMPLES ON)   # the ports link the games' shared hosts
+set(JAISCRIPT_BUILD_RUNNER ON)
+set(JAISCRIPT_INTERPRETER ON)      # the runner's --backend=interp rows and the JaiDOOM frame oracle compare backends
+set(JAISCRIPT_BUILD_TESTS OFF)
+set(JAISCRIPT_BUILD_LSP OFF)
+set(JAISCRIPT_INSTALL OFF)
+set(JAISCRIPT_LTCG ON)
+add_subdirectory("${JAISCRIPT_DIR}" jaiscript)
+
+# The runtimes get the whole-program Release JaiScript gets (its /GL reaches only its own tree)
+function(comparison_ltcg target)
+    if(MSVC AND JAISCRIPT_LTCG)
+        target_compile_options(${target} PRIVATE $<$<CONFIG:Release>:/GL>)
+        get_target_property(kind ${target} TYPE)
+        if(kind STREQUAL "EXECUTABLE")
+            target_link_options(${target} PRIVATE $<$<CONFIG:Release>:/LTCG>)
+        else()
+            set_property(TARGET ${target} APPEND PROPERTY STATIC_LIBRARY_OPTIONS $<$<CONFIG:Release>:/LTCG>)
+        endif()
+    endif()
+endfunction()
+
+add_subdirectory(angelscript)
+add_subdirectory(benchmarks)
+add_subdirectory(gloom)
+add_subdirectory(demoreel)
+
+option(JAIDOOM_PORT_LUA "Build the headless Lua JaiDoom comparison" OFF)
+if(JAIDOOM_PORT_LUA)
+    add_subdirectory(jaidoom/ports jaidoom_ports)
+endif()
+add_subdirectory(apps)
+add_subdirectory(kernels)
